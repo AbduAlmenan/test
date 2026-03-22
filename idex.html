@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Equation Visualizer</title>
+
+    <!-- Professional Math Input -->
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <!-- Math Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- UI Controls -->
+    <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.0/dist/tweakpane.min.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        :root { --accent: #2563eb; --panel: #1e293b; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        
+        .layout { display: grid; grid-template-columns: 400px 1fr; height: 100vh; }
+
+        /* Sidebar UI */
+        .sidebar { background: var(--panel); border-right: 1px solid #334155; padding: 25px; display: flex; flex-direction: column; z-index: 10; box-shadow: 10px 0 15px rgba(0,0,0,0.2); }
+        
+        h2 { font-size: 1.1rem; margin-top: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+        .label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; display: block; }
+
+        /* Equation Editor Styling */
+        math-field {
+            font-size: 1.5rem;
+            background: #ffffff;
+            color: #000;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 2px solid transparent;
+            transition: border 0.2s;
+        }
+        math-field:focus-within { border-color: var(--accent); }
+
+        /* 3D Viewport */
+        .viewport { position: relative; }
+        #canvas3d { width: 100%; height: 100%; display: block; }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            border: 1px solid #334155;
+            pointer-events: none;
+        }
+        .axis-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .color-box { width: 12px; height: 12px; border-radius: 2px; }
+
+        @media (max-width: 800px) {
+            .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+            .sidebar { height: auto; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+    <div class="sidebar">
+        <h2>Physics Dashboard</h2>
+        
+        <span class="label">Mathematical Expression [z = f(x, y, t)]</span>
+        <math-field id="formula" virtual-keyboard-mode="manual">
+            \sin(x) \cdot \cos(y + t)
+        </math-field>
+
+        <div id="ui-container"></div>
+
+        <div style="margin-top: auto; padding-top: 20px;">
+            <span class="label">Instructions:</span>
+            <p style="font-size: 0.8rem; line-height: 1.4; color: #cbd5e1;">
+                Use the virtual keyboard to enter complex symbols. Variables <b>x</b> and <b>y</b> define space; <b>t</b> defines time (auto-animation).
+            </p>
+        </div>
+    </div>
+
+    <div class="viewport">
+        <canvas id="canvas3d"></canvas>
+        
+        <div class="legend">
+            <div class="axis-item"><div class="color-box" style="background: #ff4444;"></div> X-Axis</div>
+            <div class="axis-item"><div class="color-box" style="background: #44ff44;"></div> Y-Axis</div>
+            <div class="axis-item"><div class="color-box" style="background: #4444ff;"></div> Z-Axis (Magnitude)</div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// --- 1. CONFIGURATION & UI ---
+    const config = {
+        active: true,
+        speed: 1.0,
+        resolution: 80,
+        wireframe: true,
+        color: '#38bdf8',
+        amplitude: 1.0
+    };
+
+    const pane = new Tweakpane.Pane({
+        container: document.getElementById('ui-container'),
+        title: 'Simulation Parameters'
+    });
+
+    pane.addInput(config, 'active', { label: 'Animate Time' });
+    pane.addInput(config, 'speed', { min: 0, max: 5, label: 'Time Scale' });
+    pane.addInput(config, 'amplitude', { min: 0.1, max: 3, label: 'Vertical Scale' });
+    pane.addInput(config, 'wireframe');
+    pane.addInput(config, 'color', { label: 'Surface Color' });
+
+    // --- 2. THREE.JS ENGINE ---
+    const canvas = document.getElementById('canvas3d');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    camera.position.set(15, 15, 15);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // Grid & Axis Helpers
+    const axesHelper = new THREE.AxesHelper(12);
+    scene.add(axesHelper);
+
+    const grid = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+
+    // Dynamic Surface Geometry
+    let geo = new THREE.PlaneGeometry(20, 20, config.resolution, config.resolution);
+    const mat = new THREE.MeshPhongMaterial({ 
+        color: config.color, 
+        wireframe: config.wireframe, 
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.9
+    });
+    const surface = new THREE.Mesh(geo, mat);
+    scene.add(surface);
+
+    // Lights
+    const pLight = new THREE.PointLight(0xffffff, 1);
+    pLight.position.set(10, 20, 10);
+    scene.add(pLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+    // --- 3. MATH COMPILATION ---
+    const mf = document.getElementById('formula');
+    let compiled = null;
+
+    function updateFormula() {
+        try {
+            const raw = mf.getValue('ascii-math');
+            compiled = math.compile(raw);
+            mf.style.border = "2px solid transparent";
+        } catch (e) {
+            mf.style.border = "2px solid #ef4444";
+        }
+    }
+
+    mf.addEventListener('input', updateFormula);
+    updateFormula(); // Initial compile
+
+    // --- 4. ANIMATION LOOP ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        // Handle Resizing
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        if (canvas.width !== w || canvas.height !== h) {
+            renderer.setSize(w, h, false);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        }
+
+        controls.update();
+
+        if (compiled && config.active) {
+            const t = clock.getElapsedTime() * config.speed;
+            const posAttr = geo.attributes.position;
+            
+            for (let i = 0; i < posAttr.count; i++) {
+                const x = posAttr.getX(i);
+                const y = posAttr.getY(i);
+                try {
+                    // Scope includes x, y coordinates and time 't'
+                    const z = compiled.evaluate({ x, y, t }) * config.amplitude;
+                    posAttr.setZ(i, z);
+                } catch (e) {
+                    // Fallback for incomplete formulas
+                }
+            }
+            posAttr.needsUpdate = true;
+        }
+
+        mat.wireframe = config.wireframe;
+        mat.color.set(config.color);
+        renderer.render(scene, camera);
+    }
+
+    animate();
+</script>
+</body>
+</html>
