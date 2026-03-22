@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Andalus Pro | Enterprise Editor</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://unpkg.com/mathlive"></script>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "@tiptap/core": "https://esm.sh/@tiptap/core@2.1.12",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.1.12",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.1.12",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.1.12",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.1.12",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.1.12",
+            "@tiptap/extension-text-align": "https://esm.sh/@tiptap/extension-text-align@2.1.12",
+            "@tiptap/extension-underline": "https://esm.sh/@tiptap/extension-underline@2.1.12",
+            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2.1.12",
+            "@tiptap/extension-task-list": "https://esm.sh/@tiptap/extension-task-list@2.1.12",
+            "@tiptap/extension-task-item": "https://esm.sh/@tiptap/extension-task-item@2.1.12"
+        }
+    }
+    </script>
+
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg: #f8f9fa;
+            --border: #dadce0;
+            --text: #3c4043;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* --- Header & Tabs --- */
+        .app-header { background: white; border-bottom: 1px solid var(--border); }
+        .top-bar { display: flex; align-items: center; padding: 8px 16px; gap: 20px; }
+        .logo { color: var(--primary); font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        
+        .tabs { display: flex; padding-left: 60px; gap: 4px; }
+        .tab { padding: 8px 16px; font-size: 0.85rem; cursor: pointer; border-radius: 4px 4px 0 0; border: 1px solid transparent; border-bottom: none; color: #5f6368; }
+        .tab:hover { background: #f1f3f4; }
+        .tab.active { background: white; border-color: var(--border); color: var(--primary); font-weight: 600; margin-bottom: -1px; z-index: 2; }
+
+        /* --- Ribbon --- */
+        .ribbon { background: white; border-bottom: 1px solid var(--border); padding: 8px 20px; display: none; height: 75px; align-items: center; gap: 12px; }
+        .ribbon.active { display: flex; }
+        .ribbon-group { display: flex; flex-direction: column; align-items: center; border-right: 1px solid #eee; padding-right: 12px; height: 100%; justify-content: space-between; }
+        .ribbon-group:last-child { border-right: none; }
+        .btn-set { display: flex; gap: 4px; }
+        .label { font-size: 0.65rem; color: #70757a; font-weight: 500; }
+
+        /* --- Custom Buttons --- */
+        .tool-btn { border: none; background: transparent; padding: 6px; border-radius: 4px; cursor: pointer; color: #444; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 40px; }
+        .tool-btn:hover { background: #f1f3f4; color: var(--primary); }
+        .tool-btn.active { background: #e8f0fe; color: var(--primary); }
+        .tool-btn span { font-size: 0.65rem; }
+
+        /* --- Workspace --- */
+        .workspace { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 40px 0; }
+        .paper { background: white; width: 816px; min-height: 1056px; padding: 96px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); border: 1px solid var(--border); }
+        
+        /* Tiptap Nodes */
+        .ProseMirror { outline: none; line-height: 1.6; min-height: 900px; }
+        .ProseMirror table { border-collapse: collapse; margin: 20px 0; width: 100%; border: 2px solid #ddd; }
+        .ProseMirror td, .ProseMirror th { border: 1px solid #ddd; padding: 8px; position: relative; }
+        .math-block { margin: 20px 0; padding: 15px; background: #fafafa; border: 1px solid var(--border); border-radius: 8px; }
+
+        /* Footer */
+        .footer { height: 30px; background: white; border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; font-size: 0.75rem; justify-content: space-between; color: #5f6368; }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <div class="top-bar">
+        <div class="logo"><i data-lucide="brain-circuit"></i> Andalus</div>
+        <div id="doc-name" contenteditable="true" style="font-weight: 500; min-width: 100px;">Project_Thesis_01</div>
+    </div>
+    <div class="tabs">
+        <div class="tab active" data-target="ribbon-home">Home</div>
+        <div class="tab" data-target="ribbon-insert">Insert</div>
+        <div class="tab" data-target="ribbon-table">Table Tools</div>
+        <div class="tab" data-target="ribbon-file">File</div>
+    </div>
+</div>
+
+<!-- HOME RIBBON -->
+<div class="ribbon active" id="ribbon-home">
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="cmd('undo')"><i data-lucide="undo-2" size="18"></i><span>Undo</span></button>
+            <button class="tool-btn" onclick="cmd('redo')"><i data-lucide="redo-2" size="18"></i><span>Redo</span></button>
+        </div>
+        <div class="label">History</div>
+    </div>
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="cmd('bold')"><i data-lucide="bold" size="18"></i></button>
+            <button class="tool-btn" onclick="cmd('italic')"><i data-lucide="italic" size="18"></i></button>
+            <button class="tool-btn" onclick="cmd('underline')"><i data-lucide="underline" size="18"></i></button>
+            <button class="tool-btn" onclick="cmd('highlight')"><i data-lucide="highlighter" size="18"></i></button>
+        </div>
+        <div class="label">Font</div>
+    </div>
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="cmd('left')"><i data-lucide="align-left" size="18"></i></button>
+            <button class="tool-btn" onclick="cmd('center')"><i data-lucide="align-center" size="18"></i></button>
+            <button class="tool-btn" onclick="cmd('right')"><i data-lucide="align-right" size="18"></i></button>
+        </div>
+        <div class="label">Paragraph</div>
+    </div>
+</div>
+
+<!-- INSERT RIBBON -->
+<div class="ribbon" id="ribbon-insert">
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="cmd('table')"><i data-lucide="table" size="18"></i><span>Table</span></button>
+            <button class="tool-btn" onclick="cmd('math')"><i data-lucide="sigma" size="18"></i><span>Math</span></button>
+            <button class="tool-btn" onclick="cmd('tasks')"><i data-lucide="list-checks" size="18"></i><span>Tasks</span></button>
+        </div>
+        <div class="label">Elements</div>
+    </div>
+</div>
+
+<!-- TABLE RIBBON -->
+<div class="ribbon" id="ribbon-table">
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="cmd('addRow')"><i data-lucide="rows-3" size="18"></i><span>Add Row</span></button>
+            <button class="tool-btn" onclick="cmd('addCol')"><i data-lucide="columns-3" size="18"></i><span>Add Col</span></button>
+            <button class="tool-btn" onclick="cmd('merge')"><i data-lucide="merge" size="18"></i><span>Merge</span></button>
+            <button class="tool-btn" onclick="cmd('delTable')" style="color:red;"><i data-lucide="trash-2" size="18"></i><span>Delete</span></button>
+        </div>
+        <div class="label">Table Management</div>
+    </div>
+</div>
+
+<!-- FILE RIBBON -->
+<div class="ribbon" id="ribbon-file">
+    <div class="ribbon-group">
+        <div class="btn-set">
+            <button class="tool-btn" onclick="fileAction('print')"><i data-lucide="printer" size="18"></i><span>Print PDF</span></button>
+            <button class="tool-btn" onclick="fileAction('json')"><i data-lucide="file-json" size="18"></i><span>Export JSON</span></button>
+            <button class="tool-btn" onclick="fileAction('clear')"><i data-lucide="file-x" size="18"></i><span>New Doc</span></button>
+        </div>
+        <div class="label">Document Actions</div>
+    </div>
+</div>
+
+<div class="workspace">
+    <div class="paper">
+        <div id="editor"></div>
+    </div>
+</div>
+
+<div class="footer">
+    <div id="stats">Words: 0 | Chars: 0</div>
+    <div>System Status: <span style="color:green">● Operational</span></div>
+</div>
+
+<script type="module">
+    import { Editor, Node, mergeAttributes } from '@tiptap/core';
+    import StarterKit from '@tiptap/starter-kit';
+    import Table from '@tiptap/extension-table';
+    import TableRow from '@tiptap/extension-table-row';
+    import TableCell from '@tiptap/extension-table-cell';
+    import TableHeader from '@tiptap/extension-table-header';
+    import TextAlign from '@tiptap/extension-text-align';
+    import Underline from '@tiptap/extension-underline';
+    import Highlight from '@tiptap/extension-highlight';
+    import TaskList from '@tiptap/extension-task-list';
+    import TaskItem from '@tiptap/extension-task-item';
+
+    // MathNode Extension
+    const MathNode = Node.create({
+        name: 'mathNode', group: 'block', atom: true,
+        addAttributes() { return { latex: { default: 'f(x) = \\int_{-\\infty}^{\\infty} \\hat{f}(\\xi) e^{2\\pi i x \\xi} d\\xi' } }; },
+        parseHTML() { return [{ tag: 'math-block' }]; },
+        renderHTML({ HTMLAttributes }) { return ['math-block', mergeAttributes(HTMLAttributes)]; },
+        addNodeView() {
+            return ({ node, editor, getPos }) => {
+                const dom = document.createElement('div');
+                dom.className = 'math-block';
+                dom.innerHTML = `<math-field>${node.attrs.latex}</math-field>`;
+                const mf = dom.querySelector('math-field');
+                mf.addEventListener('input', () => {
+                    editor.commands.updateAttributes('mathNode', { latex: mf.value });
+                });
+                return { dom };
+            }
+        }
+    });
+
+    const editor = new Editor({
+        element: document.querySelector('#editor'),
+        extensions: [
+            StarterKit, Table.configure({ resizable: true }), TableRow, TableCell, TableHeader,
+            TextAlign.configure({ types: ['heading', 'paragraph'] }),
+            Underline, Highlight, TaskList, TaskItem.configure({ nested: true }),
+            MathNode
+        ],
+        content: `<h1>Advanced Workstation</h1><p>Welcome to Andalus. This editor is fully mapped.</p>`,
+        onUpdate({ editor }) {
+            const words = editor.getText().split(/\s+/).filter(x => x).length;
+            document.getElementById('stats').innerText = `Words: ${words} | Chars: ${editor.getText().length}`;
+        }
+    });
+
+    // --- FUNCTIONALITY MAPPING ---
+
+    // 1. Tab Switching
+    document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+            document.querySelectorAll('.tab, .ribbon').forEach(el => el.classList.remove('active'));
+            t.classList.add('active');
+            document.getElementById(t.dataset.target).classList.add('active');
+        });
+    });
+
+    // 2. Editor Commands (Mapped to Buttons)
+    window.cmd = (type) => {
+        const chain = editor.chain().focus();
+        const actions = {
+            undo: () => chain.undo().run(),
+            redo: () => chain.redo().run(),
+            bold: () => chain.toggleBold().run(),
+            italic: () => chain.toggleItalic().run(),
+            underline: () => chain.toggleUnderline().run(),
+            highlight: () => chain.toggleHighlight().run(),
+            left: () => chain.setTextAlign('left').run(),
+            center: () => chain.setTextAlign('center').run(),
+            right: () => chain.setTextAlign('right').run(),
+            table: () => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+            math: () => chain.insertContent('<math-block></math-block>').run(),
+            tasks: () => chain.toggleTaskList().run(),
+            addRow: () => chain.addRowAfter().run(),
+            addCol: () => chain.addColumnAfter().run(),
+            merge: () => chain.mergeCells().run(),
+            delTable: () => chain.deleteTable().run()
+        };
+        if (actions[type]) actions[type]();
+    };
+
+    // 3. File Actions
+    window.fileAction = (type) => {
+        if(type === 'print') window.print();
+        if(type === 'json') {
+            console.log(editor.getJSON());
+            alert('JSON Data exported to console.');
+        }
+        if(type === 'clear') {
+            if(confirm('Clear document?')) editor.commands.setContent('<p></p>');
+        }
+    };
+
+    lucide.createIcons();
+</script>
+
+</body>
+</html>
