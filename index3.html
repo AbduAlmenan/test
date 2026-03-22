@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Andalus Pro | Technical Editor</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://unpkg.com/mathlive"></script>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "@tiptap/core": "https://esm.sh/@tiptap/core@2.1.12",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.1.12",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.1.12",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.1.12",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.1.12",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.1.12",
+            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2.1.12",
+            "@tiptap/extension-task-list": "https://esm.sh/@tiptap/extension-task-list@2.1.12",
+            "@tiptap/extension-task-item": "https://esm.sh/@tiptap/extension-task-item@2.1.12",
+            "@tiptap/extension-text-align": "https://esm.sh/@tiptap/extension-text-align@2.1.12",
+            "@tiptap/extension-image": "https://esm.sh/@tiptap/extension-image@2.1.12"
+        }
+    }
+    </script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg-app: #f1f5f9;
+            --bg-editor: #ffffff;
+            --border: #e2e8f0;
+            --text-muted: #64748b;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg-app); overflow: hidden; }
+
+        /* App Layout */
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+
+        /* Ribbon / Tabbed Header */
+        .ribbon-container { background: white; border-bottom: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .tabs { display: flex; padding: 5px 20px 0; gap: 5px; border-bottom: 1px solid var(--border); }
+        .tab { padding: 8px 16px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; border: 1px solid transparent; border-bottom: none; }
+        .tab:hover { color: var(--primary); }
+        .tab.active { background: var(--bg-app); color: var(--primary); border-color: var(--border); position: relative; top: 1px; }
+
+        .toolbar-content { display: none; padding: 10px 20px; align-items: center; gap: 15px; height: 60px; background: white; }
+        .toolbar-content.active { display: flex; }
+
+        .btn-group { display: flex; gap: 4px; border-right: 1px solid var(--border); padding-right: 12px; height: 32px; align-items: center; }
+        .tool-btn { border: none; background: transparent; padding: 6px; border-radius: 4px; cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center; }
+        .tool-btn:hover { background: #f1f5f9; color: var(--primary); }
+        .tool-btn.active { background: #eff6ff; color: var(--primary); }
+        .tool-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; display: block; text-align: center; margin-top: 2px; }
+
+        /* Main Workspace */
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+        .editor-wrapper { flex: 1; overflow-y: auto; padding: 40px; display: flex; justify-content: center; }
+        .editor-paper { background: white; width: 100%; max-width: 850px; min-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.05); padding: 60px 80px; }
+
+        /* Tiptap Custom Styles */
+        .ProseMirror { outline: none; line-height: 1.7; font-size: 1.05rem; }
+        .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1rem 0; overflow: hidden; }
+        .ProseMirror td, .ProseMirror th { border: 1px solid var(--border); padding: 8px; position: relative; }
+        .ProseMirror th { background: #f8fafc; font-weight: bold; }
+        
+        /* Math Block Node */
+        .math-block { margin: 1.5rem 0; padding: 20px; background: #fafafa; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; }
+        math-field { font-size: 1.4rem; padding: 5px; width: 100%; }
+
+        /* Task List */
+        ul[data-type="taskList"] { list-style: none; padding: 0; }
+        ul[data-type="taskList"] li { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        ul[data-type="taskList"] input[type="checkbox"] { width: 18px; height: 18px; }
+
+        @media print { .ribbon-container { display: none; } .editor-wrapper { padding: 0; } .editor-paper { box-shadow: none; border: none; } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="ribbon-container">
+        <div class="tabs">
+            <div class="tab active" data-tab="home">Home</div>
+            <div class="tab" data-tab="insert">Insert</div>
+            <div class="tab" data-tab="layout">Layout</div>
+            <div class="tab" data-tab="physics" style="color: var(--primary)">Andalus AI</div>
+        </div>
+
+        <div class="toolbar-content active" id="tab-home">
+            <div class="btn-group">
+                <button class="tool-btn" id="t-bold"><i data-lucide="bold"></i></button>
+                <button class="tool-btn" id="t-italic"><i data-lucide="italic"></i></button>
+                <button class="tool-btn" id="t-strike"><i data-lucide="strikethrough"></i></button>
+                <button class="tool-btn" id="t-highlight"><i data-lucide="highlighter"></i></button>
+            </div>
+            <div class="btn-group">
+                <button class="tool-btn" id="t-align-left"><i data-lucide="align-left"></i></button>
+                <button class="tool-btn" id="t-align-center"><i data-lucide="align-center"></i></button>
+                <button class="tool-btn" id="t-align-right"><i data-lucide="align-right"></i></button>
+            </div>
+            <div class="btn-group">
+                <button class="tool-btn" id="t-list-bullet"><i data-lucide="list"></i></button>
+                <button class="tool-btn" id="t-tasks"><i data-lucide="check-square"></i></button>
+            </div>
+        </div>
+
+        <div class="toolbar-content" id="tab-insert">
+            <div class="btn-group">
+                <button class="tool-btn" id="t-table"><i data-lucide="table"></i> Insert Table</button>
+                <button class="tool-btn" id="t-image"><i data-lucide="image"></i> Image</button>
+            </div>
+            <div class="btn-group">
+                <button class="tool-btn" id="t-math" style="font-weight: bold; color: var(--primary)">Σ Equation</button>
+                <button class="tool-btn" id="t-code"><i data-lucide="code"></i> Code</button>
+            </div>
+        </div>
+
+        <div class="toolbar-content" id="tab-physics">
+            <div class="btn-group">
+                <button class="tool-btn" style="gap: 8px;"><i data-lucide="sparkles"></i> Generate Equation</button>
+                <button class="tool-btn"><i data-lucide="microscope"></i> Analyze Symbols</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="editor-wrapper">
+            <div class="editor-paper">
+                <div id="editor"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { Editor, Node, mergeAttributes } from '@tiptap/core';
+    import StarterKit from '@tiptap/starter-kit';
+    import Table from '@tiptap/extension-table';
+    import TableRow from '@tiptap/extension-table-row';
+    import TableCell from '@tiptap/extension-table-cell';
+    import TableHeader from '@tiptap/extension-table-header';
+    import Highlight from '@tiptap/extension-highlight';
+    import TaskList from '@tiptap/extension-task-list';
+    import TaskItem from '@tiptap/extension-task-item';
+    import TextAlign from '@tiptap/extension-text-align';
+    import Image from '@tiptap/extension-image';
+
+    // 1. Math Node
+    const MathBlock = Node.create({
+        name: 'mathBlock', group: 'block', atom: true,
+        addAttributes() { return { latex: { default: 'E = mc^2' } }; },
+        parseHTML() { return [{ tag: 'math-block' }]; },
+        renderHTML({ HTMLAttributes }) { return ['math-block', mergeAttributes(HTMLAttributes)]; },
+        addNodeView() {
+            return ({ node, editor, getPos }) => {
+                const dom = document.createElement('div');
+                dom.className = 'math-block';
+                dom.innerHTML = `<math-field>${node.attrs.latex}</math-field>`;
+                const mf = dom.querySelector('math-field');
+                mf.addEventListener('input', () => {
+                    editor.commands.updateAttributes('mathBlock', { latex: mf.value });
+                });
+                return { dom };
+            }
+        }
+    });
+
+    // 2. Init Editor
+    const editor = new Editor({
+        element: document.querySelector('#editor'),
+        extensions: [
+            StarterKit,
+            Table.configure({ resizable: true }),
+            TableRow, TableCell, TableHeader,
+            Highlight,
+            TaskList,
+            TaskItem.configure({ nested: true }),
+            TextAlign.configure({ types: ['heading', 'paragraph'] }),
+            Image,
+            MathBlock
+        ],
+        content: `
+            <h1>Project Andalus Report</h1>
+            <p>This is a full-featured workstation for high-level technical documentation.</p>
+            <table>
+                <tr><th>Component</th><th>Status</th><th>Notes</th></tr>
+                <tr><td>Core Architecture</td><td>Operational</td><td>Vite-based</td></tr>
+            </table>
+            <ul data-type="taskList">
+                <li data-checked="true"><label><input type="checkbox" checked> Integrate MathLive</label></li>
+                <li data-checked="false"><label><input type="checkbox"> Implement Tabbed UI</label></li>
+            </ul>
+        `
+    });
+
+    // 3. Ribbon Tab Switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.tab, .toolbar-content').forEach(el => el.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        };
+    });
+
+    // 4. Button Actions
+    const cmds = {
+        't-bold': () => editor.chain().focus().toggleBold().run(),
+        't-italic': () => editor.chain().focus().toggleItalic().run(),
+        't-strike': () => editor.chain().focus().toggleStrike().run(),
+        't-highlight': () => editor.chain().focus().toggleHighlight().run(),
+        't-align-left': () => editor.chain().focus().setTextAlign('left').run(),
+        't-align-center': () => editor.chain().focus().setTextAlign('center').run(),
+        't-align-right': () => editor.chain().focus().setTextAlign('right').run(),
+        't-list-bullet': () => editor.chain().focus().toggleBulletList().run(),
+        't-tasks': () => editor.chain().focus().toggleTaskList().run(),
+        't-table': () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+        't-math': () => editor.chain().focus().insertContent('<math-block></math-block>').run(),
+        't-code': () => editor.chain().focus().toggleCodeBlock().run(),
+        't-image': () => {
+            const url = prompt('Enter Image URL');
+            if(url) editor.chain().focus().setImage({ src: url }).run();
+        }
+    };
+
+    Object.entries(cmds).forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if(el) el.onclick = fn;
+    });
+
+    lucide.createIcons();
+</script>
+
+</body>
+</html>
